@@ -1,0 +1,193 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${{ values.name }}-custom
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Welcome to ${{ values.name }}</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f5f5f5;
+                color: #333;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 40px 20px;
+            }
+            h1 {
+                color: #2c3e50;
+                font-size: 2.5em;
+                margin-bottom: 20px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                text-align: center;
+            }
+            .env-card {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin: 20px auto;
+            }
+            .env-item {
+                padding: 10px;
+                border-bottom: 1px solid #eee;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+            }
+            .env-label {
+                font-weight: bold;
+                color: #2c3e50;
+                margin-right: 20px;
+                flex: 0 0 30%;
+            }
+            .env-value {
+                color: #16a085;
+                flex: 1;
+                word-break: break-all;
+            }
+            #loading {
+                text-align: center;
+                padding: 20px;
+            }
+            .search-box {
+                width: 100%;
+                padding: 10px;
+                margin-bottom: 20px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 16px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Welcome to ${{ values.name }} application</h1>
+            <div class="card">
+                <p>Welcome to our application. We're glad you're here!</p>
+                <div class="image-container">
+                    <figure>
+                        <img class="centered-image" 
+                             src="" 
+                             alt="CNOE Logo"
+                             width="500">
+                        <figcaption class="image-caption">
+                            CNOE Logo
+                        </figcaption>
+                    </figure>
+                </div>
+                <p>Learn more at <a href="https://cnoe.io" target="_blank">cnoe.io</a>.</p>
+            </div>
+            <div class="env-card">
+                <input type="text" class="search-box" id="searchBox" placeholder="Search environment variables...">
+                <div id="loading">Loading environment variables...</div>
+                <div id="envList"></div>
+            </div>
+        </div>
+        <script>
+            async function loadEnvVariables() {
+                try {
+                    const response = await fetch('/env.json');
+                    const envVars = await response.json();
+                    const envList = document.getElementById('envList');
+                    const loading = document.getElementById('loading');
+                    loading.style.display = 'none';
+
+                    const searchBox = document.getElementById('searchBox');
+                    
+                    function displayEnvVars(filter = '') {
+                        envList.innerHTML = '';
+                        const sortedVars = Object.keys(envVars).sort();
+                        
+                        sortedVars.forEach(key => {
+                            if (key.toLowerCase().includes(filter.toLowerCase()) || 
+                                envVars[key].toLowerCase().includes(filter.toLowerCase())) {
+                                const item = document.createElement('div');
+                                item.className = 'env-item';
+                                item.innerHTML = `
+                                    <span class="env-label">${key}</span>
+                                    <span class="env-value">${envVars[key]}</span>
+                                `;
+                                envList.appendChild(item);
+                            }
+                        });
+                    }
+
+                    searchBox.addEventListener('input', (e) => {
+                        displayEnvVars(e.target.value);
+                    });
+
+                    displayEnvVars();
+                } catch (error) {
+                    document.getElementById('loading').innerHTML = 'Error loading environment variables';
+                    console.error('Error:', error);
+                }
+            }
+
+            window.onload = loadEnvVariables;
+        </script>
+    </body>
+    </html>
+  startup.sh: |
+    #!/bin/sh
+    (
+      echo "{"
+      first=true
+      printenv | while IFS='=' read -r key value; do
+        # Skip empty lines
+        [ -z "$key" ] && continue
+        
+        # Add comma for all but first entry
+        if $first; then
+          first=false
+        else
+          echo ","
+        fi
+        
+        # Properly escape JSON special characters
+        escaped_value=$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g; s/\r/\\r/g; s/\t/\\t/g')
+        printf '  "%s": "%s"' "$key" "$escaped_value"
+      done
+      echo
+      echo "}"
+    ) > /usr/share/nginx/html/env.json
+
+    # Validate JSON before starting nginx
+    if [ -x "$(command -v python3)" ]; then
+      python3 -c "import json; json.load(open('/usr/share/nginx/html/env.json'))" 2>/dev/null
+      if [ $? -ne 0 ]; then
+        echo "Invalid JSON generated. Check the env.json file."
+        exit 1
+      fi
+    fi
+
+    nginx -g "daemon off;"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${{ values.name }}-nginx-conf
+data:
+  nginx.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+        
+        location / {
+            root   /usr/share/nginx/html;
+            index  index.html;
+        }
+
+        location /env.json {
+            alias /usr/share/nginx/html/env.json;
+            default_type application/json;
+        }
+    }
