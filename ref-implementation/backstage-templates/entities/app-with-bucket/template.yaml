@@ -37,6 +37,12 @@ spec:
         config:
           description: ObjectStorageSpec defines the desired state of ObjectStorage
           properties:
+            writeConnectionSecretToRef:
+              description: Name of the secret to store connection details
+              properties:
+                name: 
+                  type: string
+                  default: connection-secret
             resourceConfig:
               description: ResourceConfig defines general properties of this AWS resource.
               properties:
