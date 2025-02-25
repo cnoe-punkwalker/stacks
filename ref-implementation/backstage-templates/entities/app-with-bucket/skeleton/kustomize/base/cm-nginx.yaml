@@ -17,9 +17,10 @@ data:
                 color: #333;
             }
             .container {
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 40px 20px;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
             }
             h1 {
                 color: #2c3e50;
@@ -29,12 +30,28 @@ data:
                 letter-spacing: 2px;
                 text-align: center;
             }
-            .env-card {
+            .card {
+                width: 80%;
+                max-width: 800px;
                 background: white;
                 padding: 20px;
                 border-radius: 8px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                margin: 20px auto;
+                text-align: center;
+                margin: 20px 0;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+            }
+            .env-card {
+                width: 80%;
+                max-width: 800px;
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin: 20px 0;
             }
             .env-item {
                 padding: 10px;
@@ -70,21 +87,13 @@ data:
     </head>
     <body>
         <div class="container">
-            <h1>Welcome to ${{ values.name }} application</h1>
             <div class="card">
-                <p>Welcome to our application. We're glad you're here!</p>
-                <div class="image-container">
-                    <figure>
-                        <img class="centered-image" 
-                             src="" 
-                             alt="CNOE Logo"
-                             width="500">
-                        <figcaption class="image-caption">
-                            CNOE Logo
-                        </figcaption>
-                    </figure>
-                </div>
-                <p>Learn more at <a href="https://cnoe.io" target="_blank">cnoe.io</a>.</p>
+                <img src="https://raw.githubusercontent.com/cnoe-io/website/main/static/img/logo.png" 
+                    alt="CNOE Logo"
+                    width="500">
+                <h1 style="font-size: 2.8em; color: #2c3e50; text-align: center; margin: 30px 0; font-weight: 600; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">Welcome to ${{ values.name }} </h1>
+                <p style="font-size: 1.4em; font-weight: 500; color: #34495e; margin: 20px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">This is a sample application for CNOE reference implementation!</p>
+                <p style="font-size: 1.2em; color: #2c3e50; margin: 10px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">Learn more at <a href="https://cnoe.io" target="_blank" style="color: #3498db; text-decoration: none; font-weight: 600;">cnoe.io</a>.</p>
             </div>
             <div class="env-card">
                 <input type="text" class="search-box" id="searchBox" placeholder="Search environment variables...">
@@ -137,37 +146,35 @@ data:
     </body>
     </html>
   startup.sh: |
-    #!/bin/sh
+    #!/bin/bash
     (
-      echo "{"
-      first=true
-      printenv | while IFS='=' read -r key value; do
-        # Skip empty lines
-        [ -z "$key" ] && continue
-        
-        # Add comma for all but first entry
-        if $first; then
-          first=false
-        else
-          echo ","
-        fi
-        
-        # Properly escape JSON special characters
-        escaped_value=$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g; s/\r/\\r/g; s/\t/\\t/g')
-        printf '  "%s": "%s"' "$key" "$escaped_value"
-      done
-      echo
-      echo "}"
-    ) > /usr/share/nginx/html/env.json
-
-    # Validate JSON before starting nginx
-    if [ -x "$(command -v python3)" ]; then
-      python3 -c "import json; json.load(open('/usr/share/nginx/html/env.json'))" 2>/dev/null
-      if [ $? -ne 0 ]; then
-        echo "Invalid JSON generated. Check the env.json file."
-        exit 1
-      fi
-    fi
+        echo -n "{"
+        first=true
+        env | sort | while IFS= read -r line; do
+            # Skip empty lines
+            [ -z "$line" ] && continue
+            
+            # Split on first = only
+            key="${line%%=*}"
+            value="${line#*=}"
+            
+            # Skip if key is empty
+            [ -z "$key" ] && continue
+            
+            # Add comma for all but first entry
+            if $first; then
+            first=false
+            printf "\n  "
+            else
+            printf ",\n  "
+            fi
+            
+            # Properly escape JSON special characters
+            escaped_value=$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g; s/\r/\\r/g; s/\t/\\t/g')
+            printf '"%s": "%s"' "$key" "$escaped_value"
+        done
+        printf "\n}\n"
+    ) > /tmp/env.json
 
     nginx -g "daemon off;"
 ---
@@ -187,7 +194,7 @@ data:
         }
 
         location /env.json {
-            alias /usr/share/nginx/html/env.json;
+            alias /tmp/env.json;
             default_type application/json;
         }
     }

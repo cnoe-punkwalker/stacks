@@ -17,7 +17,7 @@ spec:
       containers:
       - name: ${{ values.name }}
         image: nginx:stable
-        command: ["/bin/sh"]
+        command: ["/bin/bash"]
         args: ["/startup.sh"]
         ports:
         - containerPort: 80
