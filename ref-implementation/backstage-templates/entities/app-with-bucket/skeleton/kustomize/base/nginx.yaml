@@ -67,7 +67,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: {{ .IngressHost }}
+    - host: cnoe.localtest.me
       http:
         paths:
           - path: /${{ values.name }}(/|$)(.*)
