@@ -84,7 +84,7 @@ spec:
         url: ./skeleton
         values:
           name: ${{parameters.name}}
-          secretName: ${{parameters.writeConnectionSecretToRef.name}}
+          secretName: ${{parameters.config.writeConnectionSecretToRef.name}}
     - action: roadiehq:utils:serialize:yaml
       id: serialize
       input:
