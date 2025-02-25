@@ -66,18 +66,24 @@ metadata:
     cert-manager.io/cluster-issuer: 'letsencrypt-prod'
 spec:
   ingressClassName: nginx
-  tls:
-    - hosts:
-        - ${{ values.name }}.advaitt.people.aws.dev
-      secretName: ${{ values.name }}-prod-tls
   rules:
-  - host: ${{ values.name }}.advaitt.people.aws.dev
-    http:
-      paths:
-        - path: /
-          pathType: Prefix
-          backend:
-            service:
-              name: ${{ values.name }}
-              port:
-                number: 80
+    - host: {{ .IngressHost }}
+      http:
+        paths:
+          - path: /${{ values.name }}(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ${{ values.name }}
+                port:
+                  number: 80
+    - host: localhost
+      http:
+        paths:
+          - path: /${{ values.name }}(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ${{ values.name }}
+                port:
+                  number: 80
