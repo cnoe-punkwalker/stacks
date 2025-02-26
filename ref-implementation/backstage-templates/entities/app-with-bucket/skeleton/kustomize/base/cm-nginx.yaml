@@ -104,7 +104,7 @@ data:
         <script>
             async function loadEnvVariables() {
                 try {
-                    const response = await fetch(window.location.protocol + '//' + window.location.host + '/env.json');
+                    const response = await fetch('/${{ values.name }}/env.json');
                     const envVars = await response.json();
                     const envList = document.getElementById('envList');
                     const loading = document.getElementById('loading');
